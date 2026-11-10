@@ -64,6 +64,11 @@ type ActivateInput struct {
 	// pass empty (license_key alone identifies tenant); server-to-server
 	// integrations may pass the product ID for explicit verification.
 	ProductID string
+	// ActorType and ActorID name who activated for the audit trail:
+	// "sdk" (the default) for the machine itself, "admin" and the
+	// admin's id when an admin issues a device's token on its behalf.
+	ActorType string
+	ActorID   string
 }
 
 type ActivateResult struct {
@@ -82,6 +87,9 @@ func (s *LicenseService) Activate(ctx context.Context, in ActivateInput) (*Activ
 
 	if in.IdentifierType == "" {
 		in.IdentifierType = "device"
+	}
+	if in.ActorType == "" {
+		in.ActorType = "sdk"
 	}
 
 	lic, err := s.store.FindLicenseByKey(ctx, in.LicenseKey)
@@ -166,7 +174,7 @@ func (s *LicenseService) Activate(ctx context.Context, in ActivateInput) (*Activ
 			if errors.Is(err, store.ErrDeviceMoved) {
 				s.store.Audit(ctx, &model.AuditLog{
 					Entity: "license", EntityID: lic.ID, Action: "device_moved_to_member",
-					ActorType: "sdk", IPAddress: in.IPAddress,
+					ActorType: in.ActorType, ActorID: in.ActorID, IPAddress: in.IPAddress,
 					Changes: map[string]any{"identifier": in.Identifier, "seat_id": seatID},
 				})
 			}
@@ -194,7 +202,7 @@ func (s *LicenseService) Activate(ctx context.Context, in ActivateInput) (*Activ
 
 	s.store.Audit(ctx, &model.AuditLog{
 		Entity: "license", EntityID: lic.ID, Action: "activated",
-		ActorType: "sdk", IPAddress: in.IPAddress,
+		ActorType: in.ActorType, ActorID: in.ActorID, IPAddress: in.IPAddress,
 		Changes: map[string]any{"identifier": in.Identifier, "type": in.IdentifierType, "label": in.Label},
 	})
 

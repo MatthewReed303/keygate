@@ -36,6 +36,9 @@ type AdminHandler struct {
 	// Seats removes a licence's seats for the admin as the owner would
 	// in the portal: one path for webhooks and audit.
 	Seats *service.SeatService
+	// Licenses activates a device for the admin as the machine would
+	// itself: one path for the activation limit, tokens and audit.
+	Licenses *service.LicenseService
 	// FeedURLTTL is how long a presigned artifact URL inside a public
 	// update feed stays usable (STORAGE_FEED_URL_TTL). Gating a
 	// product's feeds does not reach links already handed out, so an
@@ -3113,6 +3116,59 @@ func (h *AdminHandler) RefundLicense(c *gin.Context) {
 	}
 
 	response.OK(c, gin.H{"status": "refunded", "provider_result": "stripe_subscription_canceled"})
+}
+
+// IssueDeviceToken activates a device on a licence and answers its
+// signed token, as POST /license/activate would for the machine: how a
+// machine that never reaches this server (air-gapped) is licensed. The
+// device is named by the identifier the machine shows. The plan's
+// activation limit applies; a device already activated gets a fresh
+// token. The audit entry names the admin.
+func (h *AdminHandler) IssueDeviceToken(c *gin.Context) {
+	id := c.Param("id")
+	if !h.checkLicenseScope(c, id) {
+		return
+	}
+	var req struct {
+		Identifier string `json:"identifier" binding:"required"`
+		Label      string `json:"label"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "identifier is required")
+		return
+	}
+	var ok bool
+	if req.Identifier, ok = cleanIdentifier(c, req.Identifier); !ok {
+		return
+	}
+	req.Label = strings.TrimSpace(req.Label)
+	if utf8.RuneCountInString(req.Label) > maxLabelLen {
+		response.BadRequest(c, "label too long (max 256 characters)")
+		return
+	}
+	if h.Licenses == nil {
+		response.Internal(c, errors.New("license service not wired"))
+		return
+	}
+	lic, err := h.Store.FindLicenseByID(c, id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, store.ErrLicenseNotFound) {
+			response.NotFound(c, "license not found")
+			return
+		}
+		response.Internal(c, err)
+		return
+	}
+	result, err := h.Licenses.Activate(c.Request.Context(), service.ActivateInput{
+		LicenseKey: lic.LicenseKey, Identifier: req.Identifier, Label: req.Label,
+		IPAddress: c.ClientIP(), ProductID: lic.ProductID,
+		ActorType: "admin", ActorID: adminID(c),
+	})
+	if err != nil {
+		writeAppErr(c, err)
+		return
+	}
+	response.OK(c, result)
 }
 
 func (h *AdminHandler) SuspendLicense(c *gin.Context) {

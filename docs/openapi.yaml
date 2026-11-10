@@ -3679,6 +3679,60 @@ paths:
         "429":
           $ref: "#/components/responses/RateLimited"
 
+  /admin/licenses/{id}/device-token:
+    post:
+      tags: [Admin Licenses]
+      summary: Issue a device's token
+      description: |
+        Activates a device on the license and answers its signed token,
+        as `/license/activate` would for the machine itself: how a
+        machine that never reaches this server (air-gapped) is licensed.
+        `identifier` is the id the machine shows. The plan's activation
+        limit applies; a device already activated gets a fresh token. The
+        audit entry names the admin. On an `offline` plan the token has no
+        check-in: `exp` is the license's end plus grace, or 0 (no expiry)
+        for a perpetual license.
+      x-required-scopes: [admin, "licenses:write"]
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LicenseID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [identifier]
+              properties:
+                identifier: { type: string, maxLength: 256 }
+                label: { type: string, maxLength: 256 }
+      responses:
+        "200":
+          description: Activated (`activated`) or already active (`already_activated`), with the device's token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivateResponse"
+        "400":
+          description: "`BAD_REQUEST`: blank or too long identifier, label too long"
+          content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+        "401":
+          $ref: "#/components/responses/AdminUnauthorized"
+        "403":
+          description: |
+            `INSUFFICIENT_SCOPE` / `PRODUCT_SCOPE_MISMATCH`; or the license is
+            not usable now (`LICENSE_EXPIRED`, `LICENSE_SUSPENDED`, ...).
+          content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+        "404":
+          $ref: "#/components/responses/AdminLicenseNotFound"
+        "409":
+          description: "`ACTIVATION_LIMIT` (`details: {max, current}`) or `FLOATING_LICENSE`"
+          content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
   /admin/licenses/{id}/reinstate:
     post:
       tags: [Admin Licenses]
