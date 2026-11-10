@@ -1188,6 +1188,7 @@ func (h *AdminHandler) CreatePlan(c *gin.Context) {
 		LicenseModel         string `json:"license_model"`
 		FloatingTimeout      *int   `json:"floating_timeout"`
 		TokenTTLDays         int    `json:"token_ttl_days"`
+		Offline              bool   `json:"offline"`
 		SelfSignup           bool   `json:"self_signup"`
 		SignupDailyCap       int    `json:"signup_daily_cap"`
 		SignupConsentText    string `json:"signup_consent_text"`
@@ -1301,6 +1302,9 @@ func (h *AdminHandler) CreatePlan(c *gin.Context) {
 			"floating license_model is not supported for "+prod.Type+" products")
 		return
 	}
+	if req.Offline && !h.offlinePlanFits(c, prod.Type, licenseModel) {
+		return
+	}
 	if req.MinQuantity == 0 {
 		req.MinQuantity = 1
 	}
@@ -1364,6 +1368,7 @@ func (h *AdminHandler) CreatePlan(c *gin.Context) {
 		LicenseModel:         licenseModel,
 		FloatingTimeout:      floatingTimeout,
 		TokenTTLDays:         req.TokenTTLDays,
+		Offline:              req.Offline,
 		SelfSignup:           req.SelfSignup,
 		SignupDailyCap:       req.SignupDailyCap,
 		SignupConsentText:    req.SignupConsentText,
@@ -1450,6 +1455,7 @@ func (h *AdminHandler) UpdatePlan(c *gin.Context) {
 		LicenseModel         *string `json:"license_model"`
 		FloatingTimeout      *int    `json:"floating_timeout"`
 		TokenTTLDays         *int    `json:"token_ttl_days"`
+		Offline              *bool   `json:"offline"`
 		SelfSignup           *bool   `json:"self_signup"`
 		SignupDailyCap       *int    `json:"signup_daily_cap"`
 		SignupConsentText    *string `json:"signup_consent_text"`
@@ -1490,6 +1496,18 @@ func (h *AdminHandler) UpdatePlan(c *gin.Context) {
 		if *req.LicenseModel == "floating" && !model.ProductSupports(prod.Type, model.CapActivations) {
 			response.Err(c, http.StatusBadRequest, "INCOMPATIBLE_PRODUCT_TYPE",
 				"floating license_model is not supported for "+prod.Type+" products")
+			return
+		}
+	}
+	if req.Offline != nil || req.LicenseModel != nil {
+		offline, licenseModel := p.Offline, p.LicenseModel
+		if req.Offline != nil {
+			offline = *req.Offline
+		}
+		if req.LicenseModel != nil {
+			licenseModel = *req.LicenseModel
+		}
+		if offline && !h.offlinePlanFits(c, prod.Type, licenseModel) {
 			return
 		}
 	}
@@ -1786,6 +1804,10 @@ func (h *AdminHandler) UpdatePlan(c *gin.Context) {
 	if req.TokenTTLDays != nil {
 		p.TokenTTLDays = *req.TokenTTLDays
 		cols = append(cols, "token_ttl_days")
+	}
+	if req.Offline != nil {
+		p.Offline = *req.Offline
+		cols = append(cols, "offline")
 	}
 	if req.Active != nil {
 		p.Active = *req.Active
@@ -2380,6 +2402,23 @@ func validatePlanNumericBounds(b planBounds) error {
 		return fmt.Errorf("token_ttl_days cannot exceed 365")
 	}
 	return nil
+}
+
+// offlinePlanFits answers 400 unless an offline plan can work: its
+// tokens are bound to one device each and never check in, so it needs a
+// product with activations and the standard license model (a floating
+// seat is only held while its machine keeps checking in).
+func (h *AdminHandler) offlinePlanFits(c *gin.Context, productType, licenseModel string) bool {
+	if !model.ProductSupports(productType, model.CapActivations) {
+		response.Err(c, http.StatusBadRequest, "INCOMPATIBLE_PRODUCT_TYPE",
+			"offline plans are not supported for "+productType+" products: they bind licences to devices")
+		return false
+	}
+	if licenseModel == "floating" {
+		response.BadRequest(c, "an offline plan cannot be floating: a floating seat needs its machine to keep checking in")
+		return false
+	}
+	return true
 }
 
 // validateSelfSignup checks a plan's self sign-up settings against the

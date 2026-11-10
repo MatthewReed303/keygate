@@ -796,6 +796,9 @@ export interface Plan {
   license_model?: string
   floating_timeout?: number
   token_ttl_days?: number
+  // Offline (air-gapped): tokens carry no check-in; they last to the
+  // licence's end plus grace, and a perpetual licence's never expire.
+  offline?: boolean
   // Self sign-up (free plans only): visitors claim a licence from the
   // plan's /pay link by confirming their email.
   self_signup?: boolean

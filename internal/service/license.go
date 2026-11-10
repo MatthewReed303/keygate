@@ -675,6 +675,7 @@ func (s *LicenseService) signToken(ctx context.Context, lic *model.License, iden
 	// was truly dead: valid_until tomorrow + grace_days 0 still bought
 	// six extra days. Clamp to whichever comes first.
 	expiresAt := now.Add(s.tokenTTLFor(lic))
+	offline := lic.Plan != nil && lic.Plan.Offline
 
 	// Grace comes from effectiveGraceDays so the token, the envelope
 	// around it and assertUsable cannot disagree about when this
@@ -685,9 +686,18 @@ func (s *LicenseService) signToken(ctx context.Context, lic *model.License, iden
 	if lic.ValidUntil != nil {
 		validUntil = lic.ValidUntil.Unix()
 		deadline := lic.ValidUntil.Add(time.Duration(grace) * 24 * time.Hour)
-		if deadline.Before(expiresAt) {
+		// An offline plan has no check-in: its token lasts exactly as
+		// long as the licence does.
+		if offline || deadline.Before(expiresAt) {
 			expiresAt = deadline
 		}
+	}
+
+	// exp 0 is "no expiry" to license.Verify: a perpetual licence on an
+	// offline plan never has to check in.
+	var exp int64
+	if !offline || lic.ValidUntil != nil {
+		exp = expiresAt.Unix()
 	}
 
 	var updatesUntil int64
@@ -703,7 +713,7 @@ func (s *LicenseService) signToken(ctx context.Context, lic *model.License, iden
 		Identifier:   identifier,
 		Features:     features,
 		IssuedAt:     now.Unix(),
-		ExpiresAt:    expiresAt.Unix(),
+		ExpiresAt:    exp,
 		ValidUntil:   validUntil,
 		UpdatesUntil: updatesUntil,
 		GraceDays:    grace,

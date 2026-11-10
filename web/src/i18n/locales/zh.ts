@@ -139,6 +139,9 @@ const zh = {
   "plans.floatingTimeout": "浮动会话超时 (分钟)",
   "plans.tokenTtlDays": "签到间隔 (天)",
   "plans.tokenTtlDaysHint": "设备离线多久后必须重新验证。0 = 默认 (7 天)。",
+  "plans.offline": "离线 (物理隔离)",
+  "plans.offlineHint":
+    "用于激活后不再连接此服务器的机器。令牌无需签到：有效期至许可证到期加宽限期，永久许可证的令牌永不过期。吊销许可证无法影响已持有令牌的机器。",
   "plans.selfSignup": "自助注册",
   "plans.selfSignupHint":
     "访客通过此套餐链接确认邮箱即可领取免费许可证。仅适用于没有 Stripe 价格、更新期和续费的套餐。即使设置为仅持有许可证的邮箱才能创建账号，此链接也会向任何邮箱发送验证码。",

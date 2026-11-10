@@ -146,6 +146,9 @@ const en = {
   "plans.floatingTimeout": "Floating Timeout (minutes)",
   "plans.tokenTtlDays": "Check-in Interval (days)",
   "plans.tokenTtlDaysHint": "How long a device can stay offline before it must verify again. 0 = default (7 days).",
+  "plans.offline": "Offline (air-gapped)",
+  "plans.offlineHint":
+    "For machines that never reach this server after activation. Tokens need no check-in: they last until the license ends plus grace, and never expire on a perpetual license. A revoked license cannot reach a machine that already holds its token.",
   "plans.selfSignup": "Self sign-up",
   "plans.selfSignupHint":
     "Visitors claim a free license from this plan's link by confirming their email. Only for plans without a Stripe price, update period or renewals. The link mails a code to any address, even when only emails that hold a license can create an account.",

@@ -277,6 +277,12 @@ type Plan struct {
 	// TokenTTLDays is how long a signed token may be used offline
 	// before the client must verify again. 0 = server default.
 	TokenTTLDays int `bun:",notnull" json:"token_ttl_days"`
+	// Offline marks a plan for machines that never reach the server
+	// again after activation (air-gapped). Its tokens carry no check-in:
+	// exp is the licence's end plus grace, or 0 (no expiry) for a
+	// perpetual licence, so TokenTTLDays does not apply. Revoking such a
+	// licence cannot reach a machine already holding its token.
+	Offline bool `bun:",notnull" json:"offline"`
 	// SelfSignup lets a visitor claim a licence on this plan from its
 	// /pay link by confirming an email address. Only for plans with no
 	// Stripe price and no update period. SignupDailyCap limits claims

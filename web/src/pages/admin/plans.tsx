@@ -276,6 +276,7 @@ export default function PlansPage() {
                               {p.active ? t("common.active") : t("common.inactive")}
                             </Badge>
                             {p.self_signup && <Badge variant="outline">{t("plans.selfSignup")}</Badge>}
+                            {p.offline && <Badge variant="outline">{t("plans.offline")}</Badge>}
                           </div>
                         </DataTableCell>
                         <DataTableCell className="text-muted-foreground text-xs">
@@ -435,6 +436,7 @@ function PlanDialog({
     license_model: plan?.license_model || "standard",
     floating_timeout: plan?.floating_timeout ?? 30,
     token_ttl_days: plan?.token_ttl_days ?? 0,
+    offline: plan?.offline ?? false,
     active: plan?.active ?? true,
     stripe_price_id: plan?.stripe_price_id || "",
     updates_days: plan?.updates_days ?? 0,
@@ -538,6 +540,7 @@ function PlanDialog({
       payload.license_model = "standard"
       payload.floating_timeout = 0
       payload.token_ttl_days = 0
+      payload.offline = false
     }
     if (!supports.seats) {
       payload.max_seats = 0
@@ -761,6 +764,21 @@ function PlanDialog({
                 </div>
               )}
               {supports.activations && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3 pt-5">
+                    <input
+                      type="checkbox"
+                      checked={form.offline}
+                      onChange={(e) => set("offline", e.target.checked)}
+                      className="h-4 w-4 rounded border-input accent-primary"
+                      id="plan-offline"
+                    />
+                    <Label htmlFor="plan-offline">{t("plans.offline")}</Label>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{t("plans.offlineHint")}</p>
+                </div>
+              )}
+              {supports.activations && !form.offline && (
                 <div className="space-y-2">
                   <Label>{t("plans.tokenTtlDays")}</Label>
                   <Input

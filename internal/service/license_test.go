@@ -217,7 +217,8 @@ func TestSignTokenClampsToLicenceDeadline(t *testing.T) {
 		validUntil *time.Time
 		graceDays  int
 		ttlDays    int // plan token_ttl_days; 0 = default
-		wantExp    time.Time
+		offline    bool
+		wantExp    time.Time // zero: the token must carry no expiry
 		wantVun    bool
 	}{
 		{
@@ -257,6 +258,22 @@ func TestSignTokenClampsToLicenceDeadline(t *testing.T) {
 			name: "plan TTL is still clamped", validUntil: at(24 * time.Hour), graceDays: 2, ttlDays: 30,
 			wantExp: now.Add(72 * time.Hour), wantVun: true,
 		},
+		{
+			// An offline (air-gapped) plan never checks in: a perpetual
+			// licence's token does not expire at all.
+			name: "offline perpetual licence has no expiry", validUntil: nil, graceDays: 7, ttlDays: 30, offline: true,
+			wantVun: false,
+		},
+		{
+			// ...and a dated one lasts to its end plus grace, past any TTL.
+			name: "offline dated licence lasts to its end", validUntil: at(2 * 365 * 24 * time.Hour), graceDays: 7, ttlDays: 30, offline: true,
+			wantExp: now.Add((2*365 + 7) * 24 * time.Hour), wantVun: true,
+		},
+		{
+			name: "offline canceled licence ends at valid_until", status: model.StatusCanceled,
+			validUntil: at(48 * time.Hour), graceDays: 7, offline: true,
+			wantExp: now.Add(48 * time.Hour), wantVun: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -268,7 +285,7 @@ func TestSignTokenClampsToLicenceDeadline(t *testing.T) {
 			lic := &model.License{
 				ID: "lic", ProductID: "prod", PlanID: "plan", Status: status,
 				ValidUntil: tt.validUntil,
-				Plan:       &model.Plan{GraceDays: tt.graceDays, TokenTTLDays: tt.ttlDays},
+				Plan:       &model.Plan{GraceDays: tt.graceDays, TokenTTLDays: tt.ttlDays, Offline: tt.offline},
 			}
 			raw, _, err := svc.signToken(context.Background(), lic, "device-1")
 			if err != nil {
@@ -279,7 +296,11 @@ func TestSignTokenClampsToLicenceDeadline(t *testing.T) {
 				t.Fatalf("verify: %v", err)
 			}
 
-			if diff := tok.ExpiresAt - tt.wantExp.Unix(); diff > 1 || diff < -1 {
+			if tt.wantExp.IsZero() {
+				if tok.ExpiresAt != 0 {
+					t.Errorf("exp = %d, want 0 (no expiry)", tok.ExpiresAt)
+				}
+			} else if diff := tok.ExpiresAt - tt.wantExp.Unix(); diff > 1 || diff < -1 {
 				t.Errorf("exp = %d, want ~%d (off by %ds)", tok.ExpiresAt, tt.wantExp.Unix(), diff)
 			}
 			if tt.wantVun {
