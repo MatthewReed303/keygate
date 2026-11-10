@@ -149,6 +149,10 @@ const en = {
   "plans.offline": "Offline (air-gapped)",
   "plans.offlineHint":
     "For machines that never reach this server after activation. Tokens need no check-in: they last until the license ends plus grace, and never expire on a perpetual license. A revoked license cannot reach a machine that already holds its token.",
+  "plans.evaluation": "Evaluation",
+  "plans.evaluationMinutes": "Evaluation (minutes)",
+  "plans.evaluationHint":
+    "0 for none. More than 0 makes this the product's evaluation plan: an unlicensed machine may ask for a token of it (POST /license/evaluate), bound to that machine and valid this many minutes. No license is created.",
   "plans.selfSignup": "Self sign-up",
   "plans.selfSignupHint":
     "Visitors claim a free license from this plan's link by confirming their email. Only for plans without a Stripe price, update period or renewals. The link mails a code to any address, even when only emails that hold a license can create an account.",

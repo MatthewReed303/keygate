@@ -799,6 +799,9 @@ export interface Plan {
   // Offline (air-gapped): tokens carry no check-in; they last to the
   // licence's end plus grace, and a perpetual licence's never expire.
   offline?: boolean
+  // Evaluation: > 0 lets an unlicensed machine ask for a token of this
+  // plan (POST /license/evaluate), valid this many minutes.
+  evaluation_minutes?: number
   // Self sign-up (free plans only): visitors claim a licence from the
   // plan's /pay link by confirming their email.
   self_signup?: boolean

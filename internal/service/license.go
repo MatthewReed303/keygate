@@ -38,6 +38,8 @@ type LicenseService struct {
 	logger     *slog.Logger
 	failures   FailureTracker
 	webhook    *WebhookService
+	// evaluations limits the evaluation tokens each machine gets.
+	evaluations evaluationLimiter
 }
 
 func NewLicenseService(s *store.Store, signingKey licenseSigningKey, logger *slog.Logger, failures FailureTracker, webhook *WebhookService) *LicenseService {

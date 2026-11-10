@@ -142,6 +142,10 @@ const zh = {
   "plans.offline": "离线 (物理隔离)",
   "plans.offlineHint":
     "用于激活后不再连接此服务器的机器。令牌无需签到：有效期至许可证到期加宽限期，永久许可证的令牌永不过期。吊销许可证无法影响已持有令牌的机器。",
+  "plans.evaluation": "试用",
+  "plans.evaluationMinutes": "试用时长（分钟）",
+  "plans.evaluationHint":
+    "0 表示不提供试用。大于 0 时此方案为该产品的试用方案：未授权的机器可申请此方案的令牌（POST /license/evaluate），令牌绑定该机器，有效期为此分钟数，不会创建许可证。",
   "plans.selfSignup": "自助注册",
   "plans.selfSignupHint":
     "访客通过此套餐链接确认邮箱即可领取免费许可证。仅适用于没有 Stripe 价格、更新期和续费的套餐。即使设置为仅持有许可证的邮箱才能创建账号，此链接也会向任何邮箱发送验证码。",

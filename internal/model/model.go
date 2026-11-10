@@ -283,6 +283,10 @@ type Plan struct {
 	// perpetual licence, so TokenTTLDays does not apply. Revoking such a
 	// licence cannot reach a machine already holding its token.
 	Offline bool `bun:",notnull" json:"offline"`
+	// EvaluationMinutes > 0 makes this an evaluation plan: an unlicensed
+	// machine may ask POST /license/evaluate for a token of it, bound to
+	// its identifier and valid this many minutes, without a licence.
+	EvaluationMinutes int `bun:",notnull,default:0" json:"evaluation_minutes"`
 	// SelfSignup lets a visitor claim a licence on this plan from its
 	// /pay link by confirming an email address. Only for plans with no
 	// Stripe price and no update period. SignupDailyCap limits claims

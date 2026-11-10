@@ -179,3 +179,28 @@ func str(v any) string {
 	}
 	return ""
 }
+
+// Evaluate gives an unlicensed machine a signed token of its product's
+// evaluation plan (POST /license/evaluate { product_id, identifier }).
+// Public like the other /license routes; capped per machine by the
+// service and per address by the group's rate limit.
+func (h *LicenseHandler) Evaluate(c *gin.Context) {
+	var req struct {
+		ProductID  string `json:"product_id" binding:"required"`
+		Identifier string `json:"identifier" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "product_id and identifier are required")
+		return
+	}
+	var ok bool
+	if req.Identifier, ok = cleanIdentifier(c, req.Identifier); !ok {
+		return
+	}
+	result, err := h.svc.Evaluate(c.Request.Context(), strings.TrimSpace(req.ProductID), req.Identifier)
+	if err != nil {
+		writeAppErr(c, err)
+		return
+	}
+	response.OK(c, result)
+}

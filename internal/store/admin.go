@@ -186,6 +186,19 @@ func (s *Store) ListPlans(ctx context.Context, productID, search string, p Page)
 	return out, total, nil
 }
 
+// EvaluationPlan is the product's evaluation plan (the oldest, when it
+// has several), with its entitlements; nil when it offers none.
+func (s *Store) EvaluationPlan(ctx context.Context, productID string) (*model.Plan, error) {
+	var out []*model.Plan
+	err := s.DB.NewSelect().Model(&out).Relation("Entitlements").
+		Where("plan.product_id = ?", productID).Where("plan.evaluation_minutes > 0").
+		OrderExpr("plan.created_at ASC, plan.id ASC").Limit(1).Scan(ctx)
+	if err != nil || len(out) == 0 {
+		return nil, err
+	}
+	return out[0], nil
+}
+
 // FillPlanIDs gives a new plan the ids CreatePlan would, for callers
 // that insert it on their own transaction with CreatePlanIn.
 func (s *Store) FillPlanIDs(p *model.Plan) {

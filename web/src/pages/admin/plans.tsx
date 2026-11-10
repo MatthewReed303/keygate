@@ -277,6 +277,9 @@ export default function PlansPage() {
                             </Badge>
                             {p.self_signup && <Badge variant="outline">{t("plans.selfSignup")}</Badge>}
                             {p.offline && <Badge variant="outline">{t("plans.offline")}</Badge>}
+                            {(p.evaluation_minutes ?? 0) > 0 && (
+                              <Badge variant="outline">{t("plans.evaluation")}</Badge>
+                            )}
                           </div>
                         </DataTableCell>
                         <DataTableCell className="text-muted-foreground text-xs">
@@ -437,6 +440,7 @@ function PlanDialog({
     floating_timeout: plan?.floating_timeout ?? 30,
     token_ttl_days: plan?.token_ttl_days ?? 0,
     offline: plan?.offline ?? false,
+    evaluation_minutes: plan?.evaluation_minutes ?? 0,
     active: plan?.active ?? true,
     stripe_price_id: plan?.stripe_price_id || "",
     updates_days: plan?.updates_days ?? 0,
@@ -541,6 +545,7 @@ function PlanDialog({
       payload.floating_timeout = 0
       payload.token_ttl_days = 0
       payload.offline = false
+      payload.evaluation_minutes = 0
     }
     if (!supports.seats) {
       payload.max_seats = 0
@@ -776,6 +781,20 @@ function PlanDialog({
                     <Label htmlFor="plan-offline">{t("plans.offline")}</Label>
                   </div>
                   <p className="text-xs text-muted-foreground">{t("plans.offlineHint")}</p>
+                </div>
+              )}
+              {supports.activations && (
+                <div className="space-y-2">
+                  <Label htmlFor="plan-evaluation">{t("plans.evaluationMinutes")}</Label>
+                  <Input
+                    id="plan-evaluation"
+                    type="number"
+                    min={0}
+                    max={1440}
+                    value={form.evaluation_minutes}
+                    onChange={(e) => set("evaluation_minutes", Number(e.target.value))}
+                  />
+                  <p className="text-xs text-muted-foreground">{t("plans.evaluationHint")}</p>
                 </div>
               )}
               {supports.activations && !form.offline && (

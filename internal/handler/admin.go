@@ -1189,6 +1189,7 @@ func (h *AdminHandler) CreatePlan(c *gin.Context) {
 		FloatingTimeout      *int   `json:"floating_timeout"`
 		TokenTTLDays         int    `json:"token_ttl_days"`
 		Offline              bool   `json:"offline"`
+		EvaluationMinutes    int    `json:"evaluation_minutes"`
 		SelfSignup           bool   `json:"self_signup"`
 		SignupDailyCap       int    `json:"signup_daily_cap"`
 		SignupConsentText    string `json:"signup_consent_text"`
@@ -1305,6 +1306,10 @@ func (h *AdminHandler) CreatePlan(c *gin.Context) {
 	if req.Offline && !h.offlinePlanFits(c, prod.Type, licenseModel) {
 		return
 	}
+	if req.EvaluationMinutes < 0 || req.EvaluationMinutes > maxEvaluationMinutes {
+		response.BadRequest(c, "evaluation_minutes must be between 0 and 1440")
+		return
+	}
 	if req.MinQuantity == 0 {
 		req.MinQuantity = 1
 	}
@@ -1369,6 +1374,7 @@ func (h *AdminHandler) CreatePlan(c *gin.Context) {
 		FloatingTimeout:      floatingTimeout,
 		TokenTTLDays:         req.TokenTTLDays,
 		Offline:              req.Offline,
+		EvaluationMinutes:    req.EvaluationMinutes,
 		SelfSignup:           req.SelfSignup,
 		SignupDailyCap:       req.SignupDailyCap,
 		SignupConsentText:    req.SignupConsentText,
@@ -1456,6 +1462,7 @@ func (h *AdminHandler) UpdatePlan(c *gin.Context) {
 		FloatingTimeout      *int    `json:"floating_timeout"`
 		TokenTTLDays         *int    `json:"token_ttl_days"`
 		Offline              *bool   `json:"offline"`
+		EvaluationMinutes    *int    `json:"evaluation_minutes"`
 		SelfSignup           *bool   `json:"self_signup"`
 		SignupDailyCap       *int    `json:"signup_daily_cap"`
 		SignupConsentText    *string `json:"signup_consent_text"`
@@ -1808,6 +1815,14 @@ func (h *AdminHandler) UpdatePlan(c *gin.Context) {
 	if req.Offline != nil {
 		p.Offline = *req.Offline
 		cols = append(cols, "offline")
+	}
+	if req.EvaluationMinutes != nil {
+		if *req.EvaluationMinutes < 0 || *req.EvaluationMinutes > maxEvaluationMinutes {
+			response.BadRequest(c, "evaluation_minutes must be between 0 and 1440")
+			return
+		}
+		p.EvaluationMinutes = *req.EvaluationMinutes
+		cols = append(cols, "evaluation_minutes")
 	}
 	if req.Active != nil {
 		p.Active = *req.Active
@@ -2403,6 +2418,9 @@ func validatePlanNumericBounds(b planBounds) error {
 	}
 	return nil
 }
+
+// maxEvaluationMinutes bounds an evaluation plan's token: a day.
+const maxEvaluationMinutes = 24 * 60
 
 // offlinePlanFits answers 400 unless an offline plan can work: its
 // tokens are bound to one device each and never check in, so it needs a
