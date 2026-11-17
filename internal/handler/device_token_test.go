@@ -12,13 +12,9 @@ import (
 	"github.com/tabloy/keygate/internal/service"
 )
 
-// An offline plan binds licences to devices that never check in, so it
-// is refused where that cannot work: a product without activations, or
-// a floating plan, whether made so at creation or by a later edit.
 // An admin issues a device's token for a machine that cannot reach the
 // server: the same activation as the machine's own, with its limit and
-// idempotency, recorded as the admin's. On an offline plan a perpetual
-// licence's token never expires.
+// idempotency, recorded as the admin's.
 func TestIssueDeviceToken(t *testing.T) {
 	f := newAPIFixture(t)
 	priv := ed25519.NewKeyFromSeed(make([]byte, ed25519.SeedSize))
@@ -26,10 +22,6 @@ func TestIssueDeviceToken(t *testing.T) {
 	id := func(v string) gin.Param { return gin.Param{Key: "id", Value: v} }
 	issue := func(identifier string) (int, map[string]any) {
 		return f.call(h.IssueDeviceToken, http.MethodPost, "/", `{"identifier":"`+identifier+`","label":"site PC"}`, nil, id(f.licA.ID))
-	}
-
-	if code, out := f.call(h.UpdatePlan, http.MethodPut, "/", `{"offline":true}`, nil, id(f.planA.ID)); code != http.StatusOK {
-		t.Fatalf("make plan offline = %d %v", code, out)
 	}
 
 	code, out := issue("hw-1")
@@ -41,8 +33,8 @@ func TestIssueDeviceToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("token: %v", err)
 	}
-	if tok.Identifier != "hw-1" || tok.ExpiresAt != 0 {
-		t.Errorf("token did=%q exp=%d, want hw-1 and no expiry", tok.Identifier, tok.ExpiresAt)
+	if tok.Identifier != "hw-1" || tok.LicenseID != f.licA.ID {
+		t.Errorf("token did=%q lid=%q, want hw-1 on %s", tok.Identifier, tok.LicenseID, f.licA.ID)
 	}
 
 	if _, out := issue("hw-1"); out["data"].(map[string]any)["status"] != "already_activated" {
