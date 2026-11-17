@@ -463,6 +463,10 @@ export const admin = {
   refundLicense: (id: string) => post(`/admin/licenses/${id}/refund`),
 
   deleteActivation: (id: string) => del(`/admin/activations/${id}`),
+  // Activates a device on the licence for the admin and answers its
+  // signed token: how a machine that never reaches the server is licensed.
+  issueDeviceToken: (licenseId: string, data: { identifier: string; label?: string }) =>
+    post<{ status: string; license_id: string; token: string }>(`/admin/licenses/${licenseId}/device-token`, data),
 
   listAPIKeys: (params?: { product_id?: string; search?: string; limit?: number; offset?: number }) =>
     get<Paged<{ api_keys: APIKey[] }>>(`/admin/api-keys?${listQuery(params)}`),
