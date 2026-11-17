@@ -13,8 +13,9 @@ permissions:
   contents: read
   packages: write
 
+# Not `github.workflow`: in the called ci.yml that names this workflow too, and one group held by both deadlocks.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: modbee-image-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
