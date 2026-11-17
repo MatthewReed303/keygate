@@ -5,6 +5,8 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # The ModBee image workflow runs these checks before it builds.
+  workflow_call:
 
 # CI only reads the repo; nothing here publishes.
 permissions:
