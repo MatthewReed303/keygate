@@ -3,7 +3,9 @@ import {
   Ban,
   Check,
   Copy,
+  Download,
   Eye,
+  KeyRound,
   Mail,
   Package,
   Pause,
@@ -603,6 +605,7 @@ function LicenseDetail({ id, onClose }: { id: string; onClose: () => void }) {
   // state so a stray ghost-click on the trash icon (icons sit
   // close together in the row) doesn't immediately revoke a device.
   const [confirmDeactivation, setConfirmDeactivation] = useState<{ id: string; label: string } | null>(null)
+  const [issuingDeviceToken, setIssuingDeviceToken] = useState(false)
   const deleteActMut = useMutation({
     mutationFn: admin.deleteActivation,
     onSuccess: () => {
@@ -1074,10 +1077,15 @@ function LicenseDetail({ id, onClose }: { id: string; onClose: () => void }) {
                   <>
                     <Separator />
                     <div>
-                      <h3 className="font-semibold mb-3">
-                        {t("licenses.activations")} ({lic.activations?.length || 0} /{" "}
-                        {(lic.activation_limit ?? lic.plan?.max_activations) || "-"})
-                      </h3>
+                      <div className="mb-3 flex items-center justify-between gap-2">
+                        <h3 className="font-semibold">
+                          {t("licenses.activations")} ({lic.activations?.length || 0} /{" "}
+                          {(lic.activation_limit ?? lic.plan?.max_activations) || "-"})
+                        </h3>
+                        <Button variant="outline" size="sm" onClick={() => setIssuingDeviceToken(true)}>
+                          <KeyRound className="h-4 w-4 mr-2" /> {t("licenses.deviceToken")}
+                        </Button>
+                      </div>
                       {lic.activations && lic.activations.length > 0 ? (
                         <DataTable>
                           <DataTableHeader>
@@ -1235,6 +1243,123 @@ function LicenseDetail({ id, onClose }: { id: string; onClose: () => void }) {
             </div>
           </AlertDialogContent>
         </AlertDialog>
+        {issuingDeviceToken && <DeviceTokenDialog licenseId={id} onClose={() => setIssuingDeviceToken(false)} />}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// Issues the signed token of a device that never reaches this server
+// (air-gapped): the admin types the identifier the machine shows, and
+// the token goes to the machine as a file or pasted text. The device
+// takes one of the licence's activations, as it would activating itself.
+function DeviceTokenDialog({ licenseId, onClose }: { licenseId: string; onClose: () => void }) {
+  const { t } = useI18n()
+  const qc = useQueryClient()
+  const [identifier, setIdentifier] = useState("")
+  const [label, setLabel] = useState("")
+  const mut = useMutation({
+    mutationFn: () =>
+      admin.issueDeviceToken(licenseId, { identifier: identifier.trim(), label: label.trim() || undefined }),
+    // The new activation shows in the licence behind the dialog.
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin"] }),
+    onError: (e: Error) => showToast(e.message, "error"),
+  })
+  const token = mut.data?.token
+  const copy = async () => {
+    if (!token) return
+    try {
+      await navigator.clipboard.writeText(token)
+      showToast(t("licenses.deviceTokenCopied"), "success")
+    } catch {
+      showToast(t("common.copyFailed"), "error")
+    }
+  }
+  const download = () => {
+    if (!token) return
+    const url = URL.createObjectURL(new Blob([token], { type: "text/plain" }))
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `${identifier.trim().replace(/[^A-Za-z0-9._-]+/g, "_") || "device"}.token`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t("licenses.deviceToken")}</DialogTitle>
+          <DialogDescription>{t("licenses.deviceTokenDesc")}</DialogDescription>
+        </DialogHeader>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            mut.mutate()
+          }}
+          className="flex min-h-0 flex-1 flex-col gap-4"
+        >
+          <DialogBody className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="device-token-identifier">{t("licenses.identifier")}</Label>
+              <Input
+                id="device-token-identifier"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                placeholder={t("licenses.deviceTokenIdentifierPlaceholder")}
+                disabled={!!token}
+                required
+                autoFocus
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="device-token-label">{t("licenses.label")}</Label>
+              <Input
+                id="device-token-label"
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+                maxLength={256}
+                disabled={!!token}
+              />
+            </div>
+            {token && (
+              <div className="space-y-2">
+                <Label htmlFor="device-token-value">{t("licenses.deviceTokenIssued")}</Label>
+                <textarea
+                  id="device-token-value"
+                  readOnly
+                  rows={6}
+                  value={token}
+                  onFocus={(e) => e.currentTarget.select()}
+                  className="flex w-full rounded-md border border-input bg-muted px-3 py-2 font-mono text-xs break-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+              </div>
+            )}
+          </DialogBody>
+          <DialogFooter>
+            {token ? (
+              <>
+                <Button type="button" variant="outline" onClick={copy}>
+                  <Copy className="h-4 w-4 mr-2" /> {t("common.copy")}
+                </Button>
+                <Button type="button" variant="outline" onClick={download}>
+                  <Download className="h-4 w-4 mr-2" /> {t("licenses.deviceTokenDownload")}
+                </Button>
+                <Button type="button" onClick={onClose}>
+                  {t("common.close")}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button type="button" variant="outline" onClick={onClose}>
+                  {t("common.cancel")}
+                </Button>
+                <Button type="submit" disabled={mut.isPending || !identifier.trim()}>
+                  {mut.isPending ? t("common.loading") : t("licenses.deviceTokenIssue")}
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   )

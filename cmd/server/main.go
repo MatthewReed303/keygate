@@ -446,6 +446,7 @@ func main() {
 	db.SetFeedURLTTL(feedTTL)
 	adminH.FeedURLTTL = feedTTL
 	adminH.Seats = seatSvc
+	adminH.Licenses = licenseSvc
 	// Whether a Stripe subscription is over is Stripe's answer to
 	// give; the admin API asks through this rather than reaching for
 	// the SDK itself. Left nil without an API key, where the question
@@ -1177,6 +1178,7 @@ func main() {
 		licWrite.POST("/licenses/:id/refund", adminH.RefundLicense)
 		licWrite.POST("/licenses/:id/revoke", adminH.RevokeLicense)
 		licWrite.POST("/licenses/:id/suspend", adminH.SuspendLicense)
+		licWrite.POST("/licenses/:id/device-token", adminH.IssueDeviceToken)
 		licWrite.POST("/licenses/:id/reinstate", adminH.ReinstateLicense)
 		licWrite.POST("/licenses/:id/valid-until", adminH.SetLicenseValidUntil)
 		licWrite.POST("/licenses/:id/quantity", adminH.SetLicenseQuantity)
